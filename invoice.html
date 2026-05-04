@@ -41,7 +41,9 @@
       <p class="text-xs text-slate-400 mono" id="header-subtitle">Billing System v2.0</p>
      </div>
     </div>
-    <div class="flex items-center gap-2"><button onclick="exportPDF()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors"> <i data-lucide="download" style="width:14px;height:14px"></i> Export PDF </button>
+    <div class="flex items-center gap-2">
+     <button onclick="exportCSV()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors"> <i data-lucide="file-spreadsheet" style="width:14px;height:14px"></i> Download Sheet </button>
+     <button onclick="exportPDF()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors"> <i data-lucide="download" style="width:14px;height:14px"></i> Export PDF </button>
     </div>
    </header><!-- Tabs -->
    <div class="no-print flex border-b border-slate-700 flex-shrink-0"><button id="tab-data" onclick="switchTab('data')" class="tab-active px-5 py-2.5 text-xs font-semibold transition-all"> <i data-lucide="database" style="width:12px;height:12px;display:inline"></i> Billing_Data </button> <button id="tab-invoice" onclick="switchTab('invoice')" class="tab-inactive px-5 py-2.5 text-xs font-semibold transition-all"> <i data-lucide="file-text" style="width:12px;height:12px;display:inline"></i> Invoice </button>
@@ -568,6 +570,40 @@
       const qrImg = document.getElementById('qr-code');
       qrImg.src = qrUrl;
       qrImg.style.display = 'block';
+    }
+
+    // Export CSV (Sheet)
+    function exportCSV() {
+      if (allRecords.length === 0) {
+        showToast('No records to export', 'error');
+        return;
+      }
+      const headers = ['Date', 'Invoice No', 'Client Name', 'Service Type', 'Description', 'Qty', 'Rate (₹)', 'Total (₹)', 'Status'];
+      const csvRows = [headers.join(',')];
+      
+      for (const rec of allRecords) {
+        const row = [
+          `"${rec.date || ''}"`,
+          `"${rec.invoice_no || ''}"`,
+          `"${rec.client_name || ''}"`,
+          `"${rec.service_type || ''}"`,
+          `"${(rec.item_description || '').replace(/"/g, '""')}"`,
+          `"${rec.qty || ''}"`,
+          `"${rec.rate || ''}"`,
+          `"${rec.total || ''}"`,
+          `"${rec.status || ''}"`
+        ];
+        csvRows.push(row.join(','));
+      }
+      
+      const csvString = csvRows.join('\n');
+      const blob = new Blob([csvString], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.setAttribute('href', url);
+      a.setAttribute('download', 'billing_sheet.csv');
+      a.click();
+      window.URL.revokeObjectURL(url);
     }
 
     // Export PDF (print)
