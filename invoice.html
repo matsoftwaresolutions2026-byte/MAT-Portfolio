@@ -1,0 +1,594 @@
+<!doctype html>
+<html class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MAT Billing System</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .tab-active { background: #0f172a; color: #38bdf8; border-bottom: 2px solid #38bdf8; }
+    .tab-inactive { background: #1e293b; color: #94a3b8; }
+    .status-paid { background: #064e3b; color: #6ee7b7; }
+    .status-pending { background: #78350f; color: #fcd34d; }
+    .status-overdue { background: #7f1d1d; color: #fca5a5; }
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+    }
+    .toast {
+      animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+    }
+    @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full bg-slate-950 text-slate-200 overflow-auto">
+  <div class="h-full w-full flex flex-col"><!-- Header -->
+   <header class="no-print bg-slate-900 border-b border-slate-700 px-4 py-3 flex items-center justify-between flex-shrink-0">
+    <div class="flex items-center gap-3">
+     <div class="w-9 h-9 bg-sky-500 rounded-lg flex items-center justify-center font-bold text-white text-sm">
+      M
+     </div>
+     <div>
+      <h1 class="text-sm font-bold text-white" id="header-company">MAT Software Solutions</h1>
+      <p class="text-xs text-slate-400 mono" id="header-subtitle">Billing System v2.0</p>
+     </div>
+    </div>
+    <div class="flex items-center gap-2"><button onclick="exportPDF()" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors"> <i data-lucide="download" style="width:14px;height:14px"></i> Export PDF </button>
+    </div>
+   </header><!-- Tabs -->
+   <div class="no-print flex border-b border-slate-700 flex-shrink-0"><button id="tab-data" onclick="switchTab('data')" class="tab-active px-5 py-2.5 text-xs font-semibold transition-all"> <i data-lucide="database" style="width:12px;height:12px;display:inline"></i> Billing_Data </button> <button id="tab-invoice" onclick="switchTab('invoice')" class="tab-inactive px-5 py-2.5 text-xs font-semibold transition-all"> <i data-lucide="file-text" style="width:12px;height:12px;display:inline"></i> Invoice </button>
+   </div><!-- Toast container -->
+   <div id="toast-container" class="fixed top-4 right-4 z-50"></div><!-- Tab: Billing Data -->
+   <div id="panel-data" class="flex-1 overflow-auto p-4"><!-- Add Entry Form -->
+    <div class="bg-slate-900 border border-slate-700 rounded-lg p-4 mb-4">
+     <h2 class="text-sm font-bold mb-3 text-sky-400">Create Invoice</h2>
+     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 pb-4 border-b border-slate-700">
+      <div><label for="f-date" class="text-xs text-slate-400 block mb-1">Date</label> <input type="date" id="f-date" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white">
+      </div>
+      <div><label for="f-invoice" class="text-xs text-slate-400 block mb-1">Invoice No</label> <input type="text" id="f-invoice" placeholder="MAT-001" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white">
+      </div>
+      <div><label for="f-client" class="text-xs text-slate-400 block mb-1">Client Name</label> <input type="text" id="f-client" placeholder="Client name" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white">
+      </div>
+      <div><label for="f-status" class="text-xs text-slate-400 block mb-1">Status</label> <select id="f-status" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white"> <option>Paid</option> <option>Pending</option> <option>Overdue</option> </select>
+      </div>
+     </div>
+     <form id="entry-form" class="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-6 gap-3">
+      <div><label for="f-service" class="text-xs text-slate-400 block mb-1">Service Type</label> <select id="f-service" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white"> <option>Software</option> <option>Domain</option> <option>Hosting</option> <option>Security</option> <option>Maintenance</option> </select>
+      </div>
+      <div><label for="f-desc" class="text-xs text-slate-400 block mb-1">Description</label> <input type="text" id="f-desc" placeholder="Item details" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white">
+      </div>
+      <div><label for="f-qty" class="text-xs text-slate-400 block mb-1">Qty</label> <input type="number" id="f-qty" value="1" min="1" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white">
+      </div>
+      <div><label for="f-rate" class="text-xs text-slate-400 block mb-1">Rate (₹)</label> <input type="number" id="f-rate" placeholder="0" min="0" class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white">
+      </div>
+      <div class="flex items-end"><button type="submit" id="add-item-btn" class="w-full bg-sky-600 hover:bg-sky-500 rounded px-3 py-1.5 text-xs font-semibold transition-colors"> + Add Item </button>
+      </div>
+      <div class="flex items-end"><button type="button" id="save-invoice-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 rounded px-3 py-1.5 text-xs font-semibold transition-colors"> Save Invoice </button>
+      </div>
+     </form><!-- Preview items for current invoice -->
+     <div id="invoice-items-preview" class="mt-4 hidden">
+      <p class="text-xs text-slate-400 mb-2">Items in this invoice:</p>
+      <div id="preview-list" class="space-y-2"></div>
+     </div>
+    </div><!-- Data Table -->
+    <div class="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
+     <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+       <thead class="bg-slate-800 text-slate-400">
+        <tr>
+         <th class="px-3 py-2 text-left">Date</th>
+         <th class="px-3 py-2 text-left">Invoice</th>
+         <th class="px-3 py-2 text-left">Client</th>
+         <th class="px-3 py-2 text-left">Service</th>
+         <th class="px-3 py-2 text-left">Description</th>
+         <th class="px-3 py-2 text-right">Qty</th>
+         <th class="px-3 py-2 text-right">Rate</th>
+         <th class="px-3 py-2 text-right">Total</th>
+         <th class="px-3 py-2 text-center">Status</th>
+         <th class="px-3 py-2 text-center">Actions</th>
+        </tr>
+       </thead>
+       <tbody id="data-table-body"></tbody>
+      </table>
+     </div>
+     <div id="empty-state" class="p-8 text-center text-slate-500 text-sm hidden"><i data-lucide="inbox" style="width:32px;height:32px;margin:0 auto 8px"></i>
+      <p>No billing entries yet. Add your first entry above.</p>
+     </div>
+    </div>
+   </div><!-- Tab: Invoice -->
+   <div id="panel-invoice" class="flex-1 overflow-auto p-4 hidden"><!-- Search Bar -->
+    <div class="no-print bg-slate-900 border border-slate-700 rounded-lg p-4 mb-4 flex items-center gap-3"><label for="invoice-search" class="text-xs text-slate-400 font-semibold whitespace-nowrap">Invoice Search (F2):</label> <input type="text" id="invoice-search" placeholder="Enter Invoice No (e.g. MAT-001)" class="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white mono"> <button onclick="searchInvoice()" class="bg-sky-600 hover:bg-sky-500 rounded px-4 py-2 text-xs font-semibold transition-colors">Search</button>
+    </div><!-- Invoice Preview -->
+    <div id="invoice-preview" class="bg-white text-slate-900 rounded-lg max-w-[210mm] mx-auto p-8 shadow-xl" style="min-height: 297mm;"><!-- Invoice Header -->
+     <div class="flex justify-between items-start border-b-2 border-sky-600 pb-4 mb-6">
+      <div>
+       <div class="flex items-center gap-2 mb-1">
+        <div class="w-10 h-10 bg-sky-600 rounded-lg flex items-center justify-center font-bold text-white">
+         M
+        </div>
+        <h1 class="text-xl font-extrabold text-slate-900" id="inv-company">MAT Software Solutions</h1>
+       </div>
+       <p class="text-xs text-slate-500 ml-12" id="inv-address">Guwahati, Assam, 781028</p>
+       <p class="text-xs text-slate-500 ml-12" id="inv-phone">Ph: 7002741262</p>
+       <p class="text-xs text-sky-600 ml-12 font-medium" id="inv-website">www.matsoftware.in</p>
+      </div>
+      <div class="text-right">
+       <h2 class="text-2xl font-extrabold text-sky-600">INVOICE</h2>
+       <p class="text-xs text-slate-500 mt-1 mono" id="inv-number">—</p>
+       <p class="text-xs text-slate-500 mono" id="inv-date">—</p>
+      </div>
+     </div><!-- Bill To -->
+     <div class="mb-6">
+      <p class="text-xs font-bold text-slate-400 uppercase mb-1">Bill To</p>
+      <p class="text-sm font-semibold" id="inv-client">—</p>
+     </div><!-- Line Items Table -->
+     <table class="w-full text-xs mb-6 border border-slate-200">
+      <thead class="bg-sky-50">
+       <tr>
+        <th class="px-3 py-2 text-left border-b font-semibold">#</th>
+        <th class="px-3 py-2 text-left border-b font-semibold">Service</th>
+        <th class="px-3 py-2 text-left border-b font-semibold">Description</th>
+        <th class="px-3 py-2 text-right border-b font-semibold">Qty</th>
+        <th class="px-3 py-2 text-right border-b font-semibold">Rate (₹)</th>
+        <th class="px-3 py-2 text-right border-b font-semibold">Total (₹)</th>
+       </tr>
+      </thead>
+      <tbody id="inv-items"></tbody>
+     </table><!-- Totals + QR -->
+     <div class="flex justify-between items-start mb-8">
+      <div>
+       <p class="text-xs text-slate-500 mb-2">Scan to Pay via UPI</p><img id="qr-code" src="" alt="UPI QR Code" class="w-28 h-28 border border-slate-200 rounded" style="display:none">
+       <p class="text-xs text-slate-400 mono mt-1" id="inv-upi">7002741262@upi</p>
+      </div>
+      <div class="text-right">
+       <div class="flex justify-between gap-8 text-sm"><span class="text-slate-500">Subtotal:</span> <span class="font-semibold mono" id="inv-subtotal">₹0</span>
+       </div>
+       <div class="flex justify-between gap-8 text-sm mt-1"><span class="text-slate-500">GST (18%):</span> <span class="font-semibold mono" id="inv-gst">₹0</span>
+       </div>
+       <div class="flex justify-between gap-8 text-lg mt-2 pt-2 border-t-2 border-sky-600"><span class="font-bold">Grand Total:</span> <span class="font-extrabold text-sky-700 mono" id="inv-grand-total">₹0</span>
+       </div>
+      </div>
+     </div><!-- Footer -->
+     <div class="border-t border-slate-200 pt-4 mt-auto">
+      <div class="grid grid-cols-2 gap-4 text-xs text-slate-500">
+       <div>
+        <p class="font-bold text-slate-700 mb-1">Bank Details</p>
+        <p id="inv-bank">Bank: State Bank of India</p>
+        <p id="inv-account">A/C: XXXXXXXXXXXX</p>
+        <p id="inv-ifsc">IFSC: SBIN0XXXXXX</p>
+       </div>
+       <div>
+        <p class="font-bold text-slate-700 mb-1">Terms &amp; Conditions</p>
+        <p>• Payment due within 15 days of invoice date</p>
+        <p>• Late payments attract 2% monthly interest</p>
+        <p>• All disputes subject to Guwahati jurisdiction</p>
+       </div>
+      </div>
+      <p class="text-center text-xs text-slate-400 mt-4" id="inv-footer-website">www.matsoftware.in | Thank you for your business!</p>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+    // State
+    let allRecords = [];
+    let config = {};
+    let deleteConfirmId = null;
+    let currentInvoiceItems = []; // Items for the invoice being created
+
+    const defaultConfig = {
+      company_name: 'MAT Software Solutions',
+      company_address: 'Guwahati, Assam, 781028',
+      company_phone: '7002741262',
+      company_website: 'www.matsoftware.in',
+      upi_id: '7002741262@upi',
+      bank_name: 'State Bank of India',
+      account_no: 'XXXXXXXXXXXX',
+      ifsc_code: 'SBIN0XXXXXX',
+      background_color: '#020617',
+      surface_color: '#0f172a',
+      text_color: '#e2e8f0',
+      primary_color: '#0284c7',
+      secondary_color: '#059669',
+      font_family: 'Plus Jakarta Sans',
+      font_size: 14
+    };
+
+    // Element SDK
+    window.elementSdk.init({
+      defaultConfig,
+      onConfigChange: async (c) => {
+        config = c;
+        const get = (k) => c[k] || defaultConfig[k];
+        document.getElementById('header-company').textContent = get('company_name');
+        document.getElementById('inv-company').textContent = get('company_name');
+        document.getElementById('inv-address').textContent = get('company_address');
+        document.getElementById('inv-phone').textContent = 'Ph: ' + get('company_phone');
+        document.getElementById('inv-website').textContent = get('company_website');
+        document.getElementById('inv-upi').textContent = get('upi_id');
+        document.getElementById('inv-bank').textContent = 'Bank: ' + get('bank_name');
+        document.getElementById('inv-account').textContent = 'A/C: ' + get('account_no');
+        document.getElementById('inv-ifsc').textContent = 'IFSC: ' + get('ifsc_code');
+        document.getElementById('inv-footer-website').textContent = get('company_website') + ' | Thank you for your business!';
+      },
+      mapToCapabilities: (c) => ({
+        recolorables: [
+          { get: () => c.background_color || defaultConfig.background_color, set: (v) => { c.background_color = v; window.elementSdk.setConfig({ background_color: v }); } },
+          { get: () => c.surface_color || defaultConfig.surface_color, set: (v) => { c.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); } },
+          { get: () => c.text_color || defaultConfig.text_color, set: (v) => { c.text_color = v; window.elementSdk.setConfig({ text_color: v }); } },
+          { get: () => c.primary_color || defaultConfig.primary_color, set: (v) => { c.primary_color = v; window.elementSdk.setConfig({ primary_color: v }); } },
+          { get: () => c.secondary_color || defaultConfig.secondary_color, set: (v) => { c.secondary_color = v; window.elementSdk.setConfig({ secondary_color: v }); } }
+        ],
+        borderables: [],
+        fontEditable: { get: () => c.font_family || defaultConfig.font_family, set: (v) => { c.font_family = v; window.elementSdk.setConfig({ font_family: v }); } },
+        fontSizeable: { get: () => c.font_size || defaultConfig.font_size, set: (v) => { c.font_size = v; window.elementSdk.setConfig({ font_size: v }); } }
+      }),
+      mapToEditPanelValues: (c) => new Map([
+        ['company_name', c.company_name || defaultConfig.company_name],
+        ['company_address', c.company_address || defaultConfig.company_address],
+        ['company_phone', c.company_phone || defaultConfig.company_phone],
+        ['company_website', c.company_website || defaultConfig.company_website],
+        ['upi_id', c.upi_id || defaultConfig.upi_id],
+        ['bank_name', c.bank_name || defaultConfig.bank_name],
+        ['account_no', c.account_no || defaultConfig.account_no],
+        ['ifsc_code', c.ifsc_code || defaultConfig.ifsc_code]
+      ])
+    });
+
+    // Data SDK
+    const dataHandler = {
+      onDataChanged(data) {
+        allRecords = data;
+        renderTable();
+      }
+    };
+
+    (async () => {
+      const r = await window.dataSdk.init(dataHandler);
+      if (!r.isOk) showToast('Failed to connect to data store', 'error');
+    })();
+
+    // Tab switching
+    function switchTab(tab) {
+      document.getElementById('panel-data').classList.toggle('hidden', tab !== 'data');
+      document.getElementById('panel-invoice').classList.toggle('hidden', tab !== 'invoice');
+      document.getElementById('tab-data').className = tab === 'data' ? 'tab-active px-5 py-2.5 text-xs font-semibold transition-all' : 'tab-inactive px-5 py-2.5 text-xs font-semibold transition-all';
+      document.getElementById('tab-invoice').className = tab === 'invoice' ? 'tab-active px-5 py-2.5 text-xs font-semibold transition-all' : 'tab-inactive px-5 py-2.5 text-xs font-semibold transition-all';
+    }
+
+    // Render table
+    function renderTable() {
+      const tbody = document.getElementById('data-table-body');
+      const empty = document.getElementById('empty-state');
+      if (allRecords.length === 0) {
+        tbody.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const existingRows = new Map([...tbody.children].map(el => [el.dataset.id, el]));
+      const fragment = document.createDocumentFragment();
+
+      allRecords.forEach(rec => {
+        let row = existingRows.get(rec.__backendId);
+        if (row) {
+          updateRow(row, rec);
+          existingRows.delete(rec.__backendId);
+        } else {
+          row = createRow(rec);
+          fragment.appendChild(row);
+        }
+      });
+
+      existingRows.forEach(el => el.remove());
+      tbody.appendChild(fragment);
+
+      // Reorder
+      allRecords.forEach(rec => {
+        const row = tbody.querySelector(`[data-id="${rec.__backendId}"]`);
+        if (row) tbody.appendChild(row);
+      });
+    }
+
+    function createRow(rec) {
+      const tr = document.createElement('tr');
+      tr.dataset.id = rec.__backendId;
+      tr.className = 'border-t border-slate-800 hover:bg-slate-800/50';
+      updateRow(tr, rec);
+      return tr;
+    }
+
+    function updateRow(tr, rec) {
+      const statusClass = rec.status === 'Paid' ? 'status-paid' : rec.status === 'Pending' ? 'status-pending' : 'status-overdue';
+      tr.innerHTML = `
+        <td class="px-3 py-2 mono">${rec.date || ''}</td>
+        <td class="px-3 py-2 mono font-medium text-sky-400">${rec.invoice_no}</td>
+        <td class="px-3 py-2">${rec.client_name}</td>
+        <td class="px-3 py-2">${rec.service_type}</td>
+        <td class="px-3 py-2 text-slate-400">${rec.item_description || ''}</td>
+        <td class="px-3 py-2 text-right mono">${rec.qty}</td>
+        <td class="px-3 py-2 text-right mono">₹${formatINR(rec.rate)}</td>
+        <td class="px-3 py-2 text-right mono font-medium">₹${formatINR(rec.total)}</td>
+        <td class="px-3 py-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${statusClass}">${rec.status}</span></td>
+        <td class="px-3 py-2 text-center">
+          ${deleteConfirmId === rec.__backendId
+            ? `<button onclick="confirmDelete('${rec.__backendId}')" class="text-red-400 text-[10px] font-bold mr-1">Confirm?</button><button onclick="cancelDelete()" class="text-slate-400 text-[10px]">Cancel</button>`
+            : `<button onclick="startDelete('${rec.__backendId}')" class="text-slate-500 hover:text-red-400 transition-colors"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>`
+          }
+        </td>
+      `;
+      lucide.createIcons();
+    }
+
+    function formatINR(n) {
+      if (!n) return '0';
+      const s = Math.round(n).toString();
+      if (s.length <= 3) return s;
+      let last3 = s.slice(-3);
+      let rest = s.slice(0, -3);
+      let formatted = '';
+      while (rest.length > 2) {
+        formatted = ',' + rest.slice(-2) + formatted;
+        rest = rest.slice(0, -2);
+      }
+      return rest + formatted + ',' + last3;
+    }
+
+    // Delete flow
+    function startDelete(id) {
+      deleteConfirmId = id;
+      renderTable();
+    }
+    function cancelDelete() {
+      deleteConfirmId = null;
+      renderTable();
+    }
+    async function confirmDelete(id) {
+      const rec = allRecords.find(r => r.__backendId === id);
+      if (!rec) return;
+      deleteConfirmId = null;
+      const result = await window.dataSdk.delete(rec);
+      if (result.isOk) showToast('Entry deleted', 'success');
+      else showToast('Delete failed', 'error');
+    }
+
+    // Preview items for current invoice
+    function updatePreviewList() {
+      const preview = document.getElementById('invoice-items-preview');
+      const list = document.getElementById('preview-list');
+      
+      if (currentInvoiceItems.length === 0) {
+        preview.classList.add('hidden');
+        return;
+      }
+
+      preview.classList.remove('hidden');
+      list.innerHTML = currentInvoiceItems.map((item, idx) => `
+        <div class="flex items-center justify-between bg-slate-800 p-2 rounded">
+          <div class="text-xs flex-1">
+            <span class="text-sky-400 font-semibold">${item.service_type}</span> • ${item.item_description || '—'} 
+            <span class="text-slate-400">×${item.qty}</span>
+          </div>
+          <span class="text-xs font-semibold text-emerald-400 mr-2">₹${formatINR(item.total)}</span>
+          <button type="button" onclick="removeInvoiceItem(${idx})" class="text-red-400 hover:text-red-300">
+            <i data-lucide="x" style="width:14px;height:14px"></i>
+          </button>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    function removeInvoiceItem(idx) {
+      currentInvoiceItems.splice(idx, 1);
+      updatePreviewList();
+    }
+
+    // Form submission - Add item to invoice
+    document.getElementById('entry-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const qty = parseInt(document.getElementById('f-qty').value) || 1;
+      const rate = parseFloat(document.getElementById('f-rate').value) || 0;
+
+      const item = {
+        service_type: document.getElementById('f-service').value,
+        item_description: document.getElementById('f-desc').value.trim(),
+        qty,
+        rate,
+        total: qty * rate
+      };
+
+      currentInvoiceItems.push(item);
+      updatePreviewList();
+      showToast('Item added to invoice', 'success');
+
+      // Reset item fields
+      document.getElementById('f-service').value = 'Software';
+      document.getElementById('f-desc').value = '';
+      document.getElementById('f-qty').value = '1';
+      document.getElementById('f-rate').value = '';
+    });
+
+    // Save invoice
+    document.getElementById('save-invoice-btn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      
+      if (currentInvoiceItems.length === 0) {
+        showToast('Add at least one item to the invoice', 'error');
+        return;
+      }
+
+      const date = document.getElementById('f-date').value || new Date().toISOString().split('T')[0];
+      const invoiceNo = document.getElementById('f-invoice').value.trim() || 'MAT-' + String(allRecords.length + 1).padStart(3, '0');
+      const clientName = document.getElementById('f-client').value.trim() || 'Client';
+      const status = document.getElementById('f-status').value;
+
+      const btn = document.getElementById('save-invoice-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      let successCount = 0;
+      for (const item of currentInvoiceItems) {
+        if (allRecords.length + successCount >= 999) {
+          showToast('Maximum 999 entries reached. Some items not saved.', 'error');
+          break;
+        }
+
+        const entry = {
+          date,
+          invoice_no: invoiceNo,
+          client_name: clientName,
+          service_type: item.service_type,
+          item_description: item.item_description,
+          qty: item.qty,
+          rate: item.rate,
+          total: item.total,
+          status
+        };
+
+        const result = await window.dataSdk.create(entry);
+        if (result.isOk) successCount++;
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Save Invoice';
+
+      if (successCount === currentInvoiceItems.length) {
+        showToast(`Invoice saved with ${successCount} items`, 'success');
+        currentInvoiceItems = [];
+        updatePreviewList();
+        document.getElementById('f-date').valueAsDate = new Date();
+        document.getElementById('f-invoice').value = '';
+        document.getElementById('f-client').value = '';
+        document.getElementById('f-service').value = 'Software';
+        document.getElementById('f-desc').value = '';
+        document.getElementById('f-qty').value = '1';
+        document.getElementById('f-rate').value = '';
+        document.getElementById('f-status').value = 'Pending';
+      }
+    });
+
+    // Invoice search
+    function searchInvoice() {
+      const query = document.getElementById('invoice-search').value.trim();
+      if (!query) return;
+      const items = allRecords.filter(r => r.invoice_no.toLowerCase() === query.toLowerCase());
+      renderInvoice(items, query);
+    }
+
+    document.getElementById('invoice-search').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); searchInvoice(); }
+    });
+
+    function renderInvoice(items, invoiceNo) {
+      const get = (k) => (config[k] || defaultConfig[k]);
+
+      if (items.length === 0) {
+        document.getElementById('inv-items').innerHTML = '<tr><td colspan="6" class="px-3 py-6 text-center text-slate-400">No items found for this invoice number.</td></tr>';
+        document.getElementById('inv-number').textContent = invoiceNo;
+        document.getElementById('inv-date').textContent = '—';
+        document.getElementById('inv-client').textContent = '—';
+        document.getElementById('inv-subtotal').textContent = '₹0';
+        document.getElementById('inv-gst').textContent = '₹0';
+        document.getElementById('inv-grand-total').textContent = '₹0';
+        document.getElementById('qr-code').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('inv-number').textContent = invoiceNo;
+      document.getElementById('inv-date').textContent = 'Date: ' + items[0].date;
+      document.getElementById('inv-client').textContent = items[0].client_name;
+
+      // Group by service type, preserving order
+      const serviceOrder = [];
+      const groupedByService = {};
+      items.forEach(item => {
+        if (!groupedByService[item.service_type]) {
+          groupedByService[item.service_type] = [];
+          serviceOrder.push(item.service_type);
+        }
+        groupedByService[item.service_type].push(item);
+      });
+
+      let html = '';
+      let rowNum = 1;
+      let subtotal = 0;
+
+      serviceOrder.forEach(serviceType => {
+        const serviceItems = groupedByService[serviceType];
+        let serviceSubtotal = 0;
+
+        serviceItems.forEach((item, idx) => {
+          serviceSubtotal += item.total;
+          subtotal += item.total;
+          html += `<tr class="border-t border-slate-100">
+            <td class="px-3 py-2">${rowNum}</td>
+            <td class="px-3 py-2 font-medium">${idx === 0 ? serviceType : ''}</td>
+            <td class="px-3 py-2 text-slate-600">${item.item_description || '—'}</td>
+            <td class="px-3 py-2 text-right">${item.qty}</td>
+            <td class="px-3 py-2 text-right mono">₹${formatINR(item.rate)}</td>
+            <td class="px-3 py-2 text-right mono font-semibold">₹${formatINR(item.total)}</td>
+          </tr>`;
+          rowNum++;
+        });
+
+        // Service subtotal row
+        html += `<tr class="bg-sky-50 border-t-2 border-sky-200">
+          <td class="px-3 py-2 text-xs text-slate-600"></td>
+          <td class="px-3 py-2 text-xs font-semibold text-slate-700 bg-sky-50">${serviceType} Subtotal</td>
+          <td class="px-3 py-2 bg-sky-50"></td>
+          <td class="px-3 py-2 bg-sky-50"></td>
+          <td class="px-3 py-2 bg-sky-50"></td>
+          <td class="px-3 py-2 text-right mono text-xs font-bold text-sky-700 bg-sky-50">₹${formatINR(serviceSubtotal)}</td>
+        </tr>`;
+      });
+
+      document.getElementById('inv-items').innerHTML = html;
+
+      const gst = Math.round(subtotal * 0.18);
+      const grandTotal = subtotal + gst;
+      document.getElementById('inv-subtotal').textContent = '₹' + formatINR(subtotal);
+      document.getElementById('inv-gst').textContent = '₹' + formatINR(gst);
+      document.getElementById('inv-grand-total').textContent = '₹' + formatINR(grandTotal);
+
+      // QR Code
+      const upi = get('upi_id');
+      const companyName = get('company_name');
+      const qrData = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(companyName)}&am=${grandTotal}&cu=INR&tn=${encodeURIComponent('Invoice ' + invoiceNo)}`;
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
+      const qrImg = document.getElementById('qr-code');
+      qrImg.src = qrUrl;
+      qrImg.style.display = 'block';
+    }
+
+    // Export PDF (print)
+    function exportPDF() {
+      window.print();
+    }
+
+    // Toast
+    function showToast(msg, type) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast px-4 py-2 rounded-lg shadow-lg text-xs font-semibold mb-2 ${type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`;
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Set today's date
+    document.getElementById('f-date').valueAsDate = new Date();
+
+    lucide.createIcons();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f68975a82c4f64c',t:'MTc3NzkwOTA5My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
