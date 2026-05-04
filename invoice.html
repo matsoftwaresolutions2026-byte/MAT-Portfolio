@@ -144,32 +144,23 @@
        </tr>
       </thead>
       <tbody id="inv-items"></tbody>
-     </table><!-- Totals + QR -->
-     <div class="flex justify-between items-start mb-8">
-      <div>
-       <p class="text-xs text-slate-500 mb-2">Scan to Pay via UPI</p><img id="qr-code" src="" alt="UPI QR Code" class="w-28 h-28 border border-slate-200 rounded" style="display:none">
-       <p class="text-xs text-slate-400 mono mt-1" id="inv-upi">7002741262@upi</p>
-      </div>
+     </table><!-- Totals -->
+     <div class="flex justify-end items-start mb-8">
       <div class="text-right">
        <div class="flex justify-between gap-8 text-sm"><span class="text-slate-500">Subtotal:</span> <span class="font-semibold mono" id="inv-subtotal">₹0</span>
        </div>
-       <div class="flex justify-between gap-8 text-sm mt-1"><span class="text-slate-500">GST (18%):</span> <span class="font-semibold mono" id="inv-gst">₹0</span>
-       </div>
-       <div class="flex justify-between gap-8 text-lg mt-2 pt-2 border-t-2 border-sky-600"><span class="font-bold">Grand Total:</span> <span class="font-extrabold text-sky-700 mono" id="inv-grand-total">₹0</span>
+       <div class="flex justify-between gap-8 text-lg mt-2 pt-2 border-t-2 border-sky-600"><span class="font-bold">Total Due:</span> <span class="font-extrabold text-sky-700 mono" id="inv-grand-total">₹0</span>
        </div>
       </div>
      </div><!-- Footer -->
      <div class="border-t border-slate-200 pt-4 mt-auto">
       <div class="grid grid-cols-2 gap-4 text-xs text-slate-500">
        <div>
-        <p class="font-bold text-slate-700 mb-1">Bank Details</p>
-        <p id="inv-bank">Bank: State Bank of India</p>
-        <p id="inv-account">A/C: XXXXXXXXXXXX</p>
-        <p id="inv-ifsc">IFSC: SBIN0XXXXXX</p>
+        <p class="font-bold text-slate-700 mb-1">Payment Instructions</p>
+        <p>Payment is due within 15 days. Please make payment via your preferred method.</p>
        </div>
        <div>
         <p class="font-bold text-slate-700 mb-1">Terms &amp; Conditions</p>
-        <p>• Payment due within 15 days of invoice date</p>
         <p>• Late payments attract 2% monthly interest</p>
         <p>• All disputes subject to Guwahati jurisdiction</p>
        </div>
@@ -191,10 +182,6 @@
       company_address: 'Guwahati, Assam, 781028',
       company_phone: '7002741262',
       company_website: 'matsolutions.netlify.app',
-      upi_id: '7002741262@upi',
-      bank_name: 'State Bank of India',
-      account_no: 'XXXXXXXXXXXX',
-      ifsc_code: 'SBIN0XXXXXX',
       background_color: '#020617',
       surface_color: '#0f172a',
       text_color: '#e2e8f0',
@@ -215,10 +202,6 @@
         document.getElementById('inv-address').textContent = get('company_address');
         document.getElementById('inv-phone').textContent = 'Ph: ' + get('company_phone');
         document.getElementById('inv-website').textContent = get('company_website');
-        document.getElementById('inv-upi').textContent = get('upi_id');
-        document.getElementById('inv-bank').textContent = 'Bank: ' + get('bank_name');
-        document.getElementById('inv-account').textContent = 'A/C: ' + get('account_no');
-        document.getElementById('inv-ifsc').textContent = 'IFSC: ' + get('ifsc_code');
         document.getElementById('inv-footer-website').textContent = get('company_website') + ' | Thank you for your business!';
       },
       mapToCapabilities: (c) => ({
@@ -237,11 +220,7 @@
         ['company_name', c.company_name || defaultConfig.company_name],
         ['company_address', c.company_address || defaultConfig.company_address],
         ['company_phone', c.company_phone || defaultConfig.company_phone],
-        ['company_website', c.company_website || defaultConfig.company_website],
-        ['upi_id', c.upi_id || defaultConfig.upi_id],
-        ['bank_name', c.bank_name || defaultConfig.bank_name],
-        ['account_no', c.account_no || defaultConfig.account_no],
-        ['ifsc_code', c.ifsc_code || defaultConfig.ifsc_code]
+        ['company_website', c.company_website || defaultConfig.company_website]
       ])
     });
 
@@ -500,9 +479,7 @@
         document.getElementById('inv-date').textContent = '—';
         document.getElementById('inv-client').textContent = '—';
         document.getElementById('inv-subtotal').textContent = '₹0';
-        document.getElementById('inv-gst').textContent = '₹0';
         document.getElementById('inv-grand-total').textContent = '₹0';
-        document.getElementById('qr-code').style.display = 'none';
         return;
       }
 
@@ -556,20 +533,9 @@
 
       document.getElementById('inv-items').innerHTML = html;
 
-      const gst = Math.round(subtotal * 0.18);
-      const grandTotal = subtotal + gst;
+      const grandTotal = subtotal;
       document.getElementById('inv-subtotal').textContent = '₹' + formatINR(subtotal);
-      document.getElementById('inv-gst').textContent = '₹' + formatINR(gst);
       document.getElementById('inv-grand-total').textContent = '₹' + formatINR(grandTotal);
-
-      // QR Code
-      const upi = get('upi_id');
-      const companyName = get('company_name');
-      const qrData = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(companyName)}&am=${grandTotal}&cu=INR&tn=${encodeURIComponent('Invoice ' + invoiceNo)}`;
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
-      const qrImg = document.getElementById('qr-code');
-      qrImg.src = qrUrl;
-      qrImg.style.display = 'block';
     }
 
     // Export CSV (Sheet)
